@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -9,7 +10,7 @@ public class OpenCVTest : MonoBehaviour {
     public static extern void Initialize();
 
     [DllImport("OpenCVTest", CallingConvention = CallingConvention.Cdecl)]
-    public static extern byte[] ProcessFrame();
+    public static extern IntPtr ProcessFrame();
 
     Texture2D tex;
 
@@ -22,8 +23,8 @@ public class OpenCVTest : MonoBehaviour {
 
     private void Update()
     {
-        byte[] imgData = ProcessFrame();
-        tex.LoadRawTextureData(imgData);
+        IntPtr imgData = ProcessFrame();
+        tex.LoadRawTextureData(imgData, 640*480*4);
         tex.Apply();
     }
 }

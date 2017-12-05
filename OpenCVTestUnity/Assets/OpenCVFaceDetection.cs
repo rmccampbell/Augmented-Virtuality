@@ -5,8 +5,9 @@ using UnityEngine;
 
 public class OpenCVFaceDetection : MonoBehaviour
 {
-    public static List<Vector2> NormalizedFacePositions { get; private set; }
-    public static Vector2 CameraResolution;
+    public static Vector2Int CameraResolution;
+    public static Vector2 FacePosition;
+    public static Texture2D FaceTexture;
 
     /// <summary>
     /// Downscale factor to speed up detection.
@@ -14,13 +15,12 @@ public class OpenCVFaceDetection : MonoBehaviour
     private const int DetectionDownScale = 1;
 
     private bool _ready;
-    private int _maxFaceDetectCount = 5;
-    private CvCircle[] _faces;
+    byte[] _pixels;
 
-    void Start()
+    void Awake()
     {
         int camWidth = 0, camHeight = 0;
-        int result = OpenCVInterop.Init(ref camWidth, ref camHeight);
+        int result = OpenCVInterop.Init(out camWidth, out camHeight);
         if (result < 0)
         {
             if (result == -1)
@@ -35,9 +35,10 @@ public class OpenCVFaceDetection : MonoBehaviour
             return;
         }
 
-        CameraResolution = new Vector2(camWidth, camHeight);
-        _faces = new CvCircle[_maxFaceDetectCount];
-        NormalizedFacePositions = new List<Vector2>();
+        CameraResolution = new Vector2Int(camWidth, camHeight);
+        _pixels = new byte[camWidth * camHeight * 4];
+        FaceTexture = new Texture2D(camWidth, camHeight, TextureFormat.BGRA32, false);
+
         OpenCVInterop.SetScale(DetectionDownScale);
         _ready = true;
     }
@@ -55,27 +56,30 @@ public class OpenCVFaceDetection : MonoBehaviour
         if (!_ready)
             return;
 
-        int detectedFaceCount = 0;
+        CvCircle face;
+        int ret;
         unsafe
         {
-            fixed (CvCircle* outFaces = _faces)
+            fixed (byte* outPixels = _pixels)
             {
-                OpenCVInterop.Detect(outFaces, _maxFaceDetectCount, ref detectedFaceCount);
+                ret = OpenCVInterop.Detect(out face, outPixels, _pixels.Length);
             }
         }
 
-        NormalizedFacePositions.Clear();
-        for (int i = 0; i < detectedFaceCount; i++)
+        if (ret > 0)
         {
-            NormalizedFacePositions.Add(new Vector2((_faces[i].X * DetectionDownScale) / CameraResolution.x, 1f - ((_faces[i].Y * DetectionDownScale) / CameraResolution.y)));
+            FacePosition = new Vector2((float)face.X / CameraResolution.x, 1f - ((float)face.Y / CameraResolution.y));
+            FaceTexture.LoadRawTextureData(_pixels);
+            FaceTexture.Apply();
         }
     }
 }
+
 // Define the functions which can be called from the .dll.
 internal static class OpenCVInterop
 {
     [DllImport("OpenCVTest2")]
-    internal static extern int Init(ref int outCameraWidth, ref int outCameraHeight);
+    internal static extern int Init(out int outCameraWidth, out int outCameraHeight);
 
     [DllImport("OpenCVTest2")]
     internal static extern int Close();
@@ -84,7 +88,7 @@ internal static class OpenCVInterop
     internal static extern int SetScale(int downscale);
 
     [DllImport("OpenCVTest2")]
-    internal unsafe static extern void Detect(CvCircle* outFaces, int maxOutFacesCount, ref int outDetectedFacesCount);
+    internal unsafe static extern int Detect(out CvCircle outFace, byte *outPixels, int outPixelsSize);
 }
 
 // Define the structure to be sequential and with the correct byte size (3 ints = 4 bytes * 3 = 12 bytes)

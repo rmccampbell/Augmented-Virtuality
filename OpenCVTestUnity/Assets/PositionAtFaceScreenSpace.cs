@@ -11,9 +11,9 @@ public class PositionAtFaceScreenSpace : MonoBehaviour
 
     void Update()
     {
-        if (OpenCVFaceDetection.NormalizedFacePositions.Count == 0)
+        if (OpenCVFaceDetection.FacePosition == Vector2.zero)
             return;
 
-        transform.position = Camera.main.ViewportToWorldPoint(new Vector3(OpenCVFaceDetection.NormalizedFacePositions[0].x, OpenCVFaceDetection.NormalizedFacePositions[0].y, _camDistance));
+        transform.position = Camera.main.ViewportToWorldPoint(new Vector3(OpenCVFaceDetection.FacePosition.x, OpenCVFaceDetection.FacePosition.y, _camDistance));
     }
 }
